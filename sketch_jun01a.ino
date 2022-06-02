@@ -2,7 +2,7 @@
 #include <Servo.h>
 #include <Wire.h>
 #include <DHT.h>
-#include <RTClib.h>
+#include "RTClib.h"
 
 // 워터펌프 핀
 #define water1 13
@@ -16,7 +16,7 @@ int angle = 0;
 
 // DHT22 
 #define dhtpin 10
-#define DhtType dht22
+#define DhtType DHT22
 DHT dht(dhtpin, DhtType);
 
 // LCD(주소, 가로, 세로)
@@ -24,8 +24,7 @@ DHT dht(dhtpin, DhtType);
 LiquidCrystal lcd(22,24, 5, 4, 3, 2);
 
 // RTC
-ThreeWire myWire(4,5,2);
-RtcDS1302<ThreeWire> Rtc(myWire);
+RTC_DS3231 rtc;
 
 // 수위측정센서 최저,최대치
 int Min_water = 300;
@@ -52,8 +51,8 @@ void lcd_show(int* hum, int* temp, int* water_level)
 
 void setup() {
   Serial.begin(9600);
-  Rtc.Begin();
-  
+  Rtc.begin();
+  dht.begin();
   // LCD 셋팅
   lcd.Begin(16, 2);
   lcd.backlight();
@@ -72,6 +71,7 @@ void setup() {
 
 void loop() {
   // DHT 습도, 온도 측정
+  delay(2000);
   int hum = dht.readHumidity();
   int* pHum = &hum;
   int temp = dht.readTemperature();
