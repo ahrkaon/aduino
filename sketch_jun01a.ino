@@ -4,9 +4,12 @@
 #include <DHT.h>
 #include "RTClib.h"
 
-// 워터펌프 핀
-#define water1 13
-#define water2 12
+// 워터펌프 어항->화분핀
+#define water1a 13
+#define water1b 12
+// 워터펌프 예비탱크->어항핀
+#define water2a 11
+#define water2b 10
 
 // 서보모터 핀
 #define servopin 25
@@ -95,8 +98,10 @@ void setup() {
   servo.attach(servopin);
   
   // 워터모터 핀
-  pinMode(water1, OUTPUT);
-  pinMode(water2, OUTPUT);
+  pinMode(water1a, OUTPUT);
+  pinMode(water1b, OUTPUT);
+  pinMode(water2a, OUTPUT);
+  pinMode(water2b, OUTPUT);
 
   // 쿨링팬
   pinMode(fan, OUTPUT);
@@ -143,11 +148,13 @@ void loop() {
   // 수위에 따른 워터펌프 on/off
   if(Min_water > water_level)
   {
-    digitalWrite(water1, HIGH);
+    digitalWrite(water1a, HIGH);
+    digitalWrite(water1b, LOW);
   }
   else if(Max_water <= water_level)
   {
-    digitalWrite(water1, LOW);
+    digitalWrite(water1a, LOW);
+    digitalWrite(water1b, LOW);
   }
   // 온도에 따른 쿨링팬 작동
   if(*pTemp > 30)
