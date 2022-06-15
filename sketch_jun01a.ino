@@ -1,12 +1,12 @@
-#include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
 #include <Servo.h>
 #include <Wire.h>
 #include <DHT.h>
 #include "RTClib.h"
 
 // 워터펌프 어항->화분핀
-#define water1a 13
-#define water1b 12
+#define water1a 7
+#define water1b 5
 // 워터펌프 예비탱크->어항핀
 #define water2a 11
 #define water2b 10
@@ -15,7 +15,7 @@
 #define servopin 25
 Servo servo;
 // 서보모터 초기 각도
-int angle = 30;
+int angle = 0;
 
 // DHT22 
 #define dhtpin 2
@@ -24,7 +24,7 @@ DHT dht(dhtpin, DhtType);
 
 // LCD(주소, 가로, 세로)
 // 주소확인 필요
-LiquidCrystal lcd(22,24, 5, 4, 3, 2);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 // RTC
 RTC_DS3231 rtc;
@@ -34,66 +34,71 @@ char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 // 쿨링팬
 #define fan 3
 // 수위측정센서 최저,최대치
-int Min_water = 300;
-int Max_water = 600;
+int Min_water = 100;
+int Max_water = 180;
 
-/*void lcd_show(int* hum, int* temp, int* water_level)
+void lcd_show(int* temp, int* hum, int* water)
 {
+
   lcd.setCursor(0,0);
   lcd.print("temp : ");
-  lcd.print(*pTemp);
+  lcd.print(*temp);
   lcd.setCursor(0,1);
   lcd.print("hum : ");
-  lcd.print(*pHum);
-  delay(1000);
+  lcd.print(*hum);
+  delay(500);
   lcd.clear();
-  delay(300);
   lcd.setCursor(0,0);
   lcd.print("water : ");
-  lcd.print(*pWater_level);
-  delay(1000);
+  lcd.print(*water);
+  delay(500);
   lcd.clear();
-  delay(300);
 }
-*/
+
 void watch()
 {
     DateTime now = rtc.now();
-
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(" (");
-    Serial.print(daysOfTheWeek[now.dayOfTheWeek()]);
-    Serial.print(") ");
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.println();
-    int aa = now.second();
-    if(aa > 30 && 34 >aa)
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print(now.year(), DEC);
+    lcd.print('/');
+    lcd.print(now.month(), DEC);
+    lcd.print('/');
+    lcd.print(now.day(), DEC);
+    lcd.setCursor(0,1);
+    lcd.print(" (");
+    lcd.print(daysOfTheWeek[now.dayOfTheWeek()]);
+    lcd.print(") ");
+    delay(500);
+    lcd.clear();
+    
+    lcd.setCursor(0,0);
+    lcd.print(now.hour(), DEC);
+    lcd.print(':');
+    lcd.print(now.minute(), DEC);
+    lcd.print(':');
+    lcd.print(now.second(), DEC);
+    delay(500);
+    lcd.clear();
+    int mysecond = now.second();
+    int myminute = now.minute();
+    if(mysecond < 32 && mysecond > 29)
     {
       servo.write(angle);
-      Serial.print("servo working"); 
-      Serial.println(); 
+      Serial.println("servo working"); 
       delay(300);
       servo.write(90);
     }
     Serial.println();
-    delay(1000);
 }
 
 void setup() {
   Serial.begin(9600);
+  //dht모듈 시작
   dht.begin();
   // LCD 셋팅
-  /*lcd.Begin(16, 2);
+  lcd.init();
   lcd.backlight();
-  */
   // 서보모터 할당
   servo.attach(servopin);
   
@@ -129,46 +134,49 @@ void setup() {
 
 void loop() {
   // DHT 습도, 온도 측정
-  delay(1000);
   int hum = dht.readHumidity();
   int* pHum = &hum;
   int temp = dht.readTemperature();
   int* pTemp = &temp;
-  Serial.print("Hum:");
-  Serial.print(*pHum);
-  Serial.print(" ");
-  Serial.print("Temp:");
-  Serial.print(*pTemp);
-  Serial.println();
   // 수위측정센서
   int water_level = analogRead(A0);
   int* pWater_level = &water_level;
+  Serial.print(water_level);
+  // 먹이기계
+  // RTC + 서보모터
+  watch();
   // 센서값 lcd출력
-  // lcd_show(pHum, pTemp, pWater_level);
+  lcd_show(pHum, pTemp, pWater_level);
+  
   // 수위에 따른 워터펌프 on/off
-  if(Min_water > water_level)
+  // 수위최저치 : 펌프작동
+  // 수위최대치 : 펌프정지
+  if(Min_water > *pWater_level)
   {
     digitalWrite(water1a, HIGH);
     digitalWrite(water1b, LOW);
+    digitalWrite(water2a, HIGH);
+    digitalWrite(water2b, LOW);
+    
   }
-  else if(Max_water <= water_level)
+  else if(Max_water <= *pWater_level)
   {
     digitalWrite(water1a, LOW);
     digitalWrite(water1b, LOW);
+    digitalWrite(water2a, LOW);
+    digitalWrite(water2b, LOW);
   }
   // 온도에 따른 쿨링팬 작동
-  if(*pTemp > 30)
+  if(temp > 28)
   {
     digitalWrite(fan, HIGH);
     Serial.print("fan working");
   }
-  else if(*pTemp <= 30)
+  else if(temp <= 28)
   {
     digitalWrite(fan, LOW);
   }
 
-  // 먹이기계
-  // RTC + 서보모터
-  watch();
+  
 
 }
